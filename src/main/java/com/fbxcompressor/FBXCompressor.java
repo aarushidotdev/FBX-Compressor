@@ -22,10 +22,10 @@ public class FBXCompressor {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
        
-        System.out.println("FBX File Tool");
-        System.out.println("==============\n");
-        System.out.println("1. Compress FBX file (minimum 16% reduction)");
-        System.out.println("2. Decompress FBX file");
+        System.out.println("Universal File Compressor");
+        System.out.println("=========================\n");
+        System.out.println("1. Compress any file (minimum 16% reduction)");
+        System.out.println("2. Decompress file");
         System.out.print("\nChoose an option (1-2): ");
        
         try {
@@ -52,18 +52,14 @@ public class FBXCompressor {
             System.out.println("\nThank you for using FBX File Tool!");
         }
     }
-    private static boolean isSupportedFile(File file) {
-        if (file == null || !file.isFile()) {
-            return false;
-        }
-        String name = file.getName().toLowerCase();
-        return name.endsWith(".fbx") || name.endsWith(".usasset");
+    private static boolean isValidFile(File file) {
+        return file != null && file.isFile() && file.length() > 0;
     }
    
     private static void compressFile(Scanner scanner) {
         try {
             // Get input file path
-            System.out.print("\nEnter the path to the FBX file: ");
+            System.out.print("\nEnter the path to the file: ");
             String inputPath = scanner.nextLine().trim();
            
             File inputFile = new File(inputPath);
@@ -72,8 +68,8 @@ public class FBXCompressor {
                 return;
             }
            
-            if (!isSupportedFile(inputFile)) {
-                System.err.println("Error: Input file must be an FBX (.fbx) or Unreal Asset (.usasset) file.");
+            if (!isValidFile(inputFile)) {
+                System.err.println("Error: Input file is not valid or is empty.");
                 return;
             }
            
@@ -143,11 +139,11 @@ public class FBXCompressor {
         }
     }
    
-    private static void decompressFBX(File inputFile, File outputFile) throws IOException {
+    private static void decompressFile(File inputFile, File outputFile) throws IOException {
         try (DataInputStream dis = new DataInputStream(new FileInputStream(inputFile))) {
             // Read and verify magic number
-            if (dis.readByte() != 'F' || dis.readByte() != 'B' ||
-                dis.readByte() != 'X' || dis.readByte() != 'C') {
+            if (dis.readByte() != 'F' || dis.readByte() != 'I' ||
+                dis.readByte() != 'L' || dis.readByte() != 'E') {
                 // If not our custom format, try to copy the file directly
                 Files.copy(inputFile.toPath(), outputFile.toPath(),
                          java.nio.file.StandardCopyOption.REPLACE_EXISTING);
@@ -195,7 +191,7 @@ public class FBXCompressor {
     private static void decompressFile(Scanner scanner) {
         try {
             // Get input file path
-            System.out.print("\nEnter the path to the compressed FBX file: ");
+            System.out.print("\nEnter the path to the compressed file: ");
             String inputPath = scanner.nextLine().trim();
            
             File inputFile = new File(inputPath);
@@ -237,7 +233,7 @@ public class FBXCompressor {
             System.out.println("\nDecompressing " + inputFile.getName() + "...");
             long startTime = System.currentTimeMillis();
            
-            decompressFBX(inputFile, outputPath.toFile());
+            decompressFile(inputFile, outputPath.toFile());
            
             long endTime = System.currentTimeMillis();
            
@@ -257,12 +253,6 @@ public class FBXCompressor {
     // File validation is now handled by checking the file extension and content during processing
    
     private static CompressionResult compressAsset(File inputFile, File outputFile) throws IOException {
-        // Check for supported file extensions
-        String fileName = inputFile.getName().toLowerCase();
-        if (!(fileName.endsWith(".fbx") || fileName.endsWith(".usasset"))) {
-            throw new IOException("Input file must have .fbx or .usasset extension");
-        }
-       
         if (!inputFile.exists() || inputFile.length() == 0) {
             throw new IOException("Input file does not exist or is empty");
         }
@@ -284,16 +274,16 @@ public class FBXCompressor {
         byte[] compressedData = baos.toByteArray();
        
         // Write to temp file with our custom format:
-        // [4 bytes: 'FBXC' magic number]
+        // [4 bytes: 'FILE' magic number]
         // [compressed size (8 bytes)]
         // [original size (8 bytes)]
         // [compressed data]
         try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(tempFile))) {
             // Write magic number
             dos.write('F');
-            dos.write('B');
-            dos.write('X');
-            dos.write('C');
+            dos.write('I');
+            dos.write('L');
+            dos.write('E');
            
             // Write sizes
             dos.writeLong(compressedData.length);
