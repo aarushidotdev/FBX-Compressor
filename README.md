@@ -1,9 +1,10 @@
-# FBX Compression Tool
+# 3D Asset Compression Tool
 
-A Java-based utility for compressing and decompressing FBX (Filmbox) 3D model files with a guaranteed minimum compression ratio of 16%.
+A Java-based utility for compressing and decompressing 3D asset files (FBX and Unreal .usasset) with a guaranteed minimum compression ratio of 16%.
 
 ## Features
 
+- **Multi-format Support**: Works with FBX and Unreal Engine .usasset files
 - **Lossless Compression**: Preserves all data integrity while reducing file size
 - **Guaranteed 16% Reduction**: Implements multiple compression strategies to ensure minimum size reduction
 - **User-friendly CLI**: Simple command-line interface for easy operation
@@ -18,37 +19,48 @@ A Java-based utility for compressing and decompressing FBX (Filmbox) 3D model fi
 
 ## Usage
 
-### Compress an FBX file
+### Compress a 3D Asset
 ```bash
-java -jar FBXCompressor.jar
+java -jar AssetCompressor.jar
 1
-/path/to/your/model.fbx
+/path/to/your/asset.fbx  # or .usasset
 ```
 
-### Decompress an FBX file
+### Decompress an Asset
 ```bash
-java -jar FBXCompressor.jar
+java -jar AssetCompressor.jar
 2
-/path/to/your/compressed_model.fbx
+/path/to/your/compressed_asset.fbx  # or .usasset
 ```
 
-## Research Paper: Advanced FBX Compression Algorithm
+### Supported File Types
+- `.fbx` - Autodesk FBX 3D model files
+- `.usasset` - Unreal Engine asset files
+
+## Research Paper: Advanced 3D Asset Compression Algorithm
 
 ### Abstract
-This paper presents a novel approach to FBX file compression that guarantees a minimum 16% reduction in file size while maintaining data integrity. Our algorithm combines traditional compression techniques with custom strategies tailored for 3D model data.
+This paper presents a novel approach to FBX file compression that guarantees a minimum 16% reduction in file size while maintaining data integrity. Our algorithm is particularly effective on 3D asset files due to their structured nature and common patterns in 3D model data, such as repeated vertex coordinates, animation keyframes, and serialized object data. The compression is format-aware and handles the unique characteristics of both FBX and Unreal .usasset files. (FBX and Unreal .usasset), commonly used in game development and 3D modeling, often contain redundant data that can be effectively compressed. We present a multi-stage compression algorithm that adapts to different types of 3D content and asset formats to achieve consistent compression ratios.
 
 ### 1. Introduction
-FBX files, commonly used in 3D modeling and animation, often contain redundant data that can be effectively compressed. We present a multi-stage compression algorithm that adapts to different types of 3D content to achieve consistent compression ratios.
+3D asset files (FBX and Unreal .usasset), commonly used in game development and 3D modeling, often contain redundant data that can be effectively compressed. We present a multi-stage compression algorithm that adapts to different types of 3D content and asset formats to achieve consistent compression ratios.
 
 ### 2. Methodology
 
 #### 2.1 File Structure Analysis
-FBX files consist of:
+#### FBX Files:
 - Header section
 - Node hierarchy
 - Geometry data
 - Animation data
 - Textures and materials
+
+#### Unreal .usasset Files:
+- Binary serialized UObject data
+- Property data
+- Reference tables
+- Import/Export tables
+- Name and path hashes
 
 #### 2.2 Compression Pipeline
 1. **Initial Compression**
@@ -104,3 +116,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Support
 
 For support, please open an issue in the GitHub repository.
+
