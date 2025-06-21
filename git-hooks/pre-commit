@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Get the root directory of the repository
+REPO_ROOT=$(git rev-parse --show-toplevel)
+HOOKS_DIR="$(dirname "$0")"
+COMPRESSOR="$HOOKS_DIR/../target/universal-compressor-1.0-SNAPSHOT.jar"
+
+# Check if the compressor exists
+if [ ! -f "$COMPRESSOR" ]; then
+    echo "Error: Compressor not found at $COMPRESSOR"
+    exit 1
+fi
+
+# Create a temporary file to track which files we've processed
+processed_files="$REPO_ROOT/.compressed_files"
+> "$processed_files"
+
+# Check for modified/added files that need compression
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+    # Skip if file is already compressed or is the processed files list
+    if [[ "$file" == *"_compressed" || "$file" == ".compressed_files" ]]; then
+        continue
+    fi
+    
+    # Skip if file is in .gitignore
+    if git check-ignore -q "$file"; then
+        continue
+    fi
+    
+    # Skip the compressor itself and other special files
+    if [[ "$file" == *"universal-compressor"* ]] || [[ "$file" == *".git"* ]]; then
+        continue
+    fi
+    
+    # Get the full path
+    full_path="$REPO_ROOT/$file"
+    
+    # Skip if file doesn't exist (was deleted or moved)
+    if [ ! -f "$full_path" ]; then
+        continue
+    fi
+    
+    # Skip small text files (less than 1KB) as they might not benefit from compression
+    file_size=$(wc -c < "$full_path")
+    if [ "$file_size" -lt 1024 ] && file -b --mime-encoding "$full_path" | grep -q 'us-ascii\|utf-8'; then
+        echo "Skipping small text file: $file"
+        continue
+    fi
+    
+    echo "Compressing $file..."
+    
+    # Create directory structure for compressed file if needed
+    mkdir -p "$(dirname "${full_path}_compressed")"
+    
+    # Compress the file
+    java -jar "$COMPRESSOR" <<< "1\n$full_path"
+    
+    # If compression was successful, stage the changes
+    if [ $? -eq 0 ] && [ -f "${full_path}_compressed" ]; then
+        # Add the compressed file to git
+        git add "${file}_compressed"
+        # Remove the original file from git tracking
+        git rm --cached -q "$file"
+        # Track that we've processed this file
+        echo "$file" >> "$processed_files"
+        
+        # If the original file is in the working directory, remove it
+        if [ -f "$full_path" ]; then
+            rm -f "$full_path"
+        fi
+    else
+        echo "Warning: Failed to compress $file"
+    fi
+done
+
+# Add the processed files list to git if it's not empty
+if [ -s "$processed_files" ]; then
+    git add "$processed_files"
+    echo "Compressed files have been staged for commit."
+    echo "Original files will be restored when you check out this commit."
+fi
+
+exit 0
