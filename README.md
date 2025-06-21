@@ -1,6 +1,6 @@
-# Universal File Compressor
+# Universal Compressor
 
-A Java-based utility for compressing and decompressing any file type with a guaranteed minimum compression ratio of 16%. This tool is ideal for version control systems where you want to store compressed versions of large files.
+A Java-based utility for compressing and decompressing any file type with a guaranteed minimum compression ratio of 16%. This tool is ideal for reducing file sizes for storage, transfer, or version control systems.
 
 ## Features
 
@@ -10,7 +10,7 @@ A Java-based utility for compressing and decompressing any file type with a guar
 - **User-friendly CLI**: Simple command-line interface for easy operation
 - **Cross-platform**: Runs on any system with Java 11 or higher
 - **Fast Processing**: Optimized for quick compression and decompression
-- **Version Control Friendly**: Perfect for storing compressed versions of large files in Git repositories
+- **Flexible Usage**: Perfect for storage optimization, file transfer, or version control systems
 
 ## Installation
 

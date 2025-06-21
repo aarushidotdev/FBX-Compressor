@@ -1,7 +1,4 @@
-com\fbxcompressor\FBXCompressor$3.class
-com\fbxcompressor\FBXCompressor.class
-com\fbxcompressor\model\CompressionResult.class
-com\fbxcompressor\FBXCompressor$1.class
-com\fbxcompressor\FBXCompressor$2.class
-com\fbxcompressor\FBXCompressor$4.class
-com\fbxcompressor\util\FileUtils.class
+com\universalcompressor\UniversalCompressor$1.class
+com\universalcompressor\UniversalCompressor.class
+com\universalcompressor\util\FileUtils.class
+com\universalcompressor\model\CompressionResult.class

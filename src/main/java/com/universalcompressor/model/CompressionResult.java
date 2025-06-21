@@ -1,29 +1,29 @@
-package com.fbxcompressor.model;
+package com.universalcompressor.model;
 
 /**
  * Represents the result of a compression operation.
  */
 public class CompressionResult {
-    private final String originalFileName;
-    private final String compressedFileName;
+    private final boolean success;
+    private final String errorMessage;
     private final long originalSize;     // in bytes
     private final long compressedSize;    // in bytes
 
-    public CompressionResult(String originalFileName, String compressedFileName, 
+    public CompressionResult(boolean success, String errorMessage, 
                            long originalSize, long compressedSize) {
-        this.originalFileName = originalFileName;
-        this.compressedFileName = compressedFileName;
+        this.success = success;
+        this.errorMessage = errorMessage;
         this.originalSize = originalSize;
         this.compressedSize = compressedSize;
     }
 
     // Getters
-    public String getOriginalFileName() {
-        return originalFileName;
+    public boolean isSuccess() {
+        return success;
     }
 
-    public String getCompressedFileName() {
-        return compressedFileName;
+    public String getErrorMessage() {
+        return errorMessage;
     }
 
     public long getOriginalSize() {
