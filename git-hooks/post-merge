@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# This hook runs after a git merge completes
+# It ensures that any compressed files are properly decompressed
+
+# Only run after a real merge (not a fast-forward)
+if [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+    # Run the same logic as post-checkout to decompress files
+    exec "$(dirname "$0")/post-checkout"
+fi
+
+exit 0

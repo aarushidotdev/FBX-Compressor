@@ -1,0 +1,85 @@
+{
+  "compression": {
+    "min_file_size": 1024,
+    "min_compression_ratio": 0.10,
+    "max_compression_time_ms": 300000,
+    "buffer_size_mb": 32,
+    "enable_multithreading": true,
+    "thread_count": 0
+  },
+  "file_patterns": {
+    "compress": [
+      "**/*.fbx", "**/*.obj", "**/*.blend", "**/*.gltf", "**/*.glb", 
+      "**/*.dae", "**/*.3ds", "**/*.stl", "**/*.ply", "**/*.abc", 
+      "**/*.usd", "**/*.usda", "**/*.usdc", "**/*.usdz", "**/*.b3dm", 
+      "**/*.pnts", "**/*.i3dm", "**/*.cmpt", "**/*.vox",
+      "**/*.tga", "**/*.hdr", "**/*.exr", "**/*.tif", "**/*.tiff",
+      "**/*.bmp", "**/*.psd", "**/*.psb", "**/*.psdt"
+    ],
+    "text_files": [
+      "**/*.json", "**/*.xml", "**/*.html", "**/*.css", "**/*.js",
+      "**/*.csv", "**/*.tsv", "**/*.txt", "**/*.md", "**/*.log"
+    ],
+    "exclude": [
+      "**/node_modules/**", "**/target/**", "**/build/**", 
+      "**/dist/**", "**/.git/**", "**/*.compressed", 
+      "**/*.gz", "**/*.bz2", "**/*.xz", "**/*.7z", "**/*.zst", "**/*.br"
+    ]
+  },
+  "compression_methods": [
+    {
+      "name": "zstd",
+      "extension": ".zst",
+      "min_size": 1048576,
+      "max_size": 107374182400,
+      "level": 22,
+      "description": "Zstandard - Best for large binary files, very fast decompression"
+    },
+    {
+      "name": "brotli",
+      "extension": ".br",
+      "min_size": 1024,
+      "max_size": 268435456,
+      "quality": 11,
+      "window_bits": 24,
+      "description": "Brotli - Best for text and web assets, excellent compression ratio"
+    },
+    {
+      "name": "xz",
+      "extension": ".xz",
+      "min_size": 5242880,
+      "max_size": 1073741824,
+      "level": 9,
+      "preset": 9,
+      "description": "XZ - Best for medium to large files, high compression ratio"
+    },
+    {
+      "name": "bzip2",
+      "extension": ".bz2",
+      "min_size": 1048576,
+      "max_size": 1073741824,
+      "level": 9,
+      "description": "BZIP2 - Good balance between speed and compression ratio"
+    },
+    {
+      "name": "gzip",
+      "extension": ".gz",
+      "min_size": 1024,
+      "max_size": 1073741824,
+      "level": 9,
+      "description": "GZIP - Widely compatible, good for small to medium files"
+    }
+  ],
+  "auto_detect": {
+    "text_files": "brotli",
+    "large_binary_files": "zstd",
+    "medium_binary_files": "xz",
+    "small_binary_files": "gzip"
+  },
+  "performance": {
+    "use_direct_io": true,
+    "read_ahead_kb": 4096,
+    "write_buffer_mb": 16,
+    "max_memory_usage_mb": 8192
+  }
+}

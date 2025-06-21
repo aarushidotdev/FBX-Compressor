@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# This hook runs after git checkout
+# We only want to run when changing branches, not when checking out files
+if [ "$3" != "1" ]; then
+    exit 0
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+COMPRESSED_DIR="$PROJECT_ROOT/CompressedAssets"
+CONTENT_DIR="$PROJECT_ROOT/Content"
+JAR_PATH="$PROJECT_ROOT/target/UniversalCompressor-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+echo "=== Post-checkout: Verifying decompressed files ==="
+
+# Create Content directory if it doesn't exist
+mkdir -p "$CONTENT_DIR"
+
+# Find all .uc files in CompressedAssets
+find "$COMPRESSED_DIR" -name '*.uc' | while read -r compressed_file; do
+    # Get relative path from CompressedAssets
+    rel_path="${compressed_file#$COMPRESSED_DIR/}"
+    # Remove .uc extension and get target path
+    target_file="$CONTENT_DIR/${rel_path%.uc}"
+    
+    # If target file doesn't exist or is older than compressed file
+    if [ ! -f "$target_file" ] || [ "$compressed_file" -nt "$target_file" ]; then
+        target_dir="$(dirname "$target_file")"
+        echo "Decompressing: $compressed_file -> $target_file"
+        
+        # Create target directory if it doesn't exist
+        mkdir -p "$target_dir"
+        
+        # Decompress the file
+        java -jar "$JAR_PATH" decompress "$compressed_file" "$target_file"
+        
+        if [ $? -ne 0 ]; then
+            echo "Error decompressing $compressed_file"
+            exit 1
+        fi
+    fi
+done
+
+echo "=== Post-checkout completed ==="
+exit 0

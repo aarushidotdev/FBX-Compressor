@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Get the project root directory
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+COMPRESSED_DIR="$PROJECT_ROOT/CompressedAssets"
+CONTENT_DIR="$PROJECT_ROOT/Content"
+JAR_PATH="$PROJECT_ROOT/target/UniversalCompressor-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+echo "=== Post-merge: Decompressing updated assets ==="
+
+# Create Content directory if it doesn't exist
+mkdir -p "$CONTENT_DIR"
+
+# Find all .uc files in CompressedAssets that were updated/added
+git diff --name-only --diff-filter=ACMRTUXB HEAD~1 HEAD -- "$COMPRESSED_DIR" | grep '\.uc$' | while read -r compressed_file; do
+    # Get relative path from CompressedAssets
+    rel_path="${compressed_file#$COMPRESSED_DIR/}"
+    # Remove .uc extension and get target path
+    target_file="$CONTENT_DIR/${rel_path%.uc}"
+    target_dir="$(dirname "$target_file")"
+    
+    echo "Decompressing: $compressed_file -> $target_file"
+    
+    # Create target directory if it doesn't exist
+    mkdir -p "$target_dir"
+    
+    # Decompress the file
+    java -jar "$JAR_PATH" decompress "$compressed_file" "$target_file"
+    
+    if [ $? -ne 0 ]; then
+        echo "Error decompressing $compressed_file"
+        exit 1
+    fi
+done
+
+echo "=== Post-merge completed ==="
+exit 0

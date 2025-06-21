@@ -1,80 +1,178 @@
 #!/bin/bash
 
+# Enable strict error handling
+set -euo pipefail
+
 # Only run after a full checkout (not after file checkout)
-if [ "$3" != "1" ]; then
+if [ "${3:-0}" != "1" ]; then
     exit 0
 fi
 
 # Get the root directory of the repository
 REPO_ROOT=$(git rev-parse --show-toplevel)
-HOOKS_DIR="$(dirname "$0")"
-COMPRESSOR="$HOOKS_DIR/../target/universal-compressor-1.0-SNAPSHOT.jar"
+HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPRESSOR="$REPO_ROOT/target/universal-compressor-1.0-SNAPSHOT.jar"
+CONFIG_FILE="$REPO_ROOT/compression-config.json"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Logging functions
+info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
+error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
 # Check if the compressor exists
 if [ ! -f "$COMPRESSOR" ]; then
-    echo "Error: Compressor not found at $COMPRESSOR"
-    echo "Please build the compressor with 'mvn clean package'"
+    error "Compressor not found at $COMPRESSOR"
+    info "Building the project..."
+    if ! (cd "$REPO_ROOT" && mvn clean package); then
+        error "Failed to build the project"
+        exit 1
+    fi
+    if [ ! -f "$COMPRESSOR" ]; then
+        error "Compressor still not found after build. Please check the build output."
+        exit 1
+    fi
+    info "Project built successfully"
+fi
+
+# Check if config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    error "Config file not found at $CONFIG_FILE"
     exit 1
 fi
 
-# File that tracks which files were compressed
-processed_files="$REPO_ROOT/.compressed_files"
+# Check for required commands
+for cmd in jq file java; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        error "Required command not found: $cmd"
+        exit 1
+    fi
+done
 
-# If the processed files list exists, decompress the files
-if [ -f "$processed_files" ]; then
-    echo "Found compressed files list. Decompressing files..."
+# File that tracks which files were compressed and their compression methods
+COMPRESSED_FILES="$REPO_ROOT/.compressed_files"
+
+# If the compressed files list exists, decompress the files
+if [ -f "$COMPRESSED_FILES" ]; then
+    info "Found compressed files list. Decompressing files..."
     
-    # Create a temporary file to track decompression status
-    temp_file=$(mktemp)
+    # Create a temporary directory for our work
+    TEMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$TEMP_DIR"' EXIT
     
-    while IFS= read -r original_file || [ -n "$original_file" ]; do
-        # Skip empty lines
-        [ -z "$original_file" ] && continue
+    # Stats
+    DECOMPRESS_COUNT=0
+    SKIP_COUNT=0
+    ERROR_COUNT=0
+    
+    # Process each compressed file entry
+    while IFS='|' read -r original_file compressed_file compression_method || [ -n "$original_file" ]; do
+        # Skip empty lines or invalid entries
+        if [ -z "$original_file" ] || [ -z "$compression_method" ] || [ -z "$compressed_file" ]; then
+            warn "Skipping invalid entry in $COMPRESSED_FILES: $original_file|$compressed_file|$compression_method"
+            continue
+        fi
         
         # Get full paths
-        compressed_file="$REPO_ROOT/${original_file}_compressed"
+        compressed_file_path="$REPO_ROOT/$compressed_file"
         output_file="$REPO_ROOT/$original_file"
+        
+        # Skip if the output file already exists and is newer than the compressed file
+        if [ -f "$output_file" ] && [ "$output_file" -nt "$compressed_file_path" ]; then
+            info "Skipping $original_file: Already decompressed and up to date"
+            ((SKIP_COUNT++))
+            continue
+        fi
+        
+        # Check if compressed file exists
+        if [ ! -f "$compressed_file_path" ]; then
+            warn "Compressed file not found: $compressed_file"
+            ((ERROR_COUNT++))
+            continue
+        fi
+        
+        # Create output directory if it doesn't exist
+        output_dir=$(dirname "$output_file")
+        mkdir -p "$output_dir"
+        
+        # Decompress the file
+        info "Decompressing $compressed_file to $original_file"
+        
+        if java -jar "$COMPRESSOR" decompress "$compressed_file_path" "$output_file" "$compression_method"; then
+            # Set the modification time of the decompressed file to match the compressed file
+            touch -r "$compressed_file_path" "$output_file"
+            ((DECOMPRESS_COUNT++))
+        else
+            error "Failed to decompress $compressed_file"
+            # Remove partially decompressed file if it exists
+            rm -f "$output_file" 2>/dev/null || true
+            ((ERROR_COUNT++))
+        fi
+    done < "$COMPRESSED_FILES"
+    
+    # Print summary
+    info "Decompression complete: $DECOMPRESS_COUNT files decompressed, $SKIP_COUNT skipped, $ERROR_COUNT errors"
+    
+    if [ "$ERROR_COUNT" -gt 0 ]; then
+        warn "There were $ERROR_COUNT errors during decompression. Check the output above for details."
+    fi
+else
+    info "No compressed files to decompress"
+fi
+
+exit 0
+            ((SKIP_COUNT++))
+            continue
+        fi
         
         # Create directory for output file if it doesn't exist
         mkdir -p "$(dirname "$output_file")"
         
         # If the compressed file exists, decompress it
         if [ -f "$compressed_file" ]; then
-            echo "Decompressing $original_file..."
+            echo "Decompressing $original_file (${compression_method})..."
             
-            # Decompress the file
-            java -jar "$COMPRESSOR" <<< "2\n$compressed_file"
-            
-            # Check if decompression was successful
-            if [ $? -eq 0 ] && [ -f "$output_file" ]; then
-                echo "  Successfully decompressed to $original_file"
-                # Add the original file to git
-                git add "$original_file"
-                # Remove the compressed file from git tracking
-                git rm --cached -q "${original_file}_compressed"
-                # Remove the compressed file
-                rm -f "$compressed_file"
-                # Track successful decompression
-                echo "$original_file" >> "$temp_file"
+            # Decompress the file using the appropriate method
+            if java -jar "$COMPRESSOR" decompress "$compressed_file" "$output_file" "$compression_method"; then
+                if [ -f "$output_file" ]; then
+                    echo "  Successfully decompressed to $original_file"
+                    ((DECOMPRESS_COUNT++))
+                    
+                    # Set the same modification time as the compressed file
+                    touch -r "$compressed_file" "$output_file"
+                    
+                    # Keep the compressed file in case we need it later
+                    # It will be cleaned up by the clean hook
+                else
+                    echo "  Error: Output file not created for $original_file"
+                    echo "$original_file:$compression_method" >> "$TEMP_FILE"
+                    ((ERROR_COUNT++))
+                fi
             else
-                echo "  Warning: Failed to decompress $compressed_file"
+                echo "  Failed to decompress $original_file"
+                # Keep the entry for next time
+                echo "$original_file:$compression_method" >> "$TEMP_FILE"
+                ((ERROR_COUNT++))
             fi
         else
             echo "Warning: Compressed file not found for $original_file"
+            # Keep the entry in case it's a merge or rebase in progress
+            echo "$original_file:$compression_method" >> "$TEMP_FILE"
+            ((ERROR_COUNT++))
         fi
-    done < "$processed_files"
+    done < "$PROCESSED_FILES"
     
-    # If we successfully decompressed all files, remove the processed_files
-    if [ -s "$temp_file" ]; then
-        # Count processed files
-        processed_count=$(wc -l < "$temp_file")
-        echo "Successfully decompressed $processed_count files."
-        
-        # Remove the processed files list
-        git rm -f -q "$processed_files"
-        rm -f "$processed_files"
+    # Update the processed files list with any remaining entries
+    if [ -s "$TEMP_FILE" ]; then
+        mv "$TEMP_FILE" "$PROCESSED_FILES"
     else
-        echo "Warning: No files were decompressed"
+        rm -f "$PROCESSED_FILES"
+        rm -f "$TEMP_FILE"
     fi
     
     # Clean up

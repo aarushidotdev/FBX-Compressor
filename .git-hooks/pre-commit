@@ -1,0 +1,53 @@
+#!/bin/bash
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+COMPRESSED_DIR="$PROJECT_ROOT/CompressedAssets"
+CONTENT_DIR="$PROJECT_ROOT/Content"
+JAR_PATH="$PROJECT_ROOT/target/UniversalCompressor-1.0-SNAPSHOT-jar-with-dependencies.jar"
+
+# Create CompressedAssets directory if it doesn't exist
+mkdir -p "$COMPRESSED_DIR"
+
+echo "=== Pre-commit: Compressing modified assets ==="
+
+# Find all modified/added files in Content/ that are not in CompressedAssets/
+git diff --cached --name-only --diff-filter=ACMRTUXB -- "$CONTENT_DIR" | while read -r modified_file; do
+    # Skip if file was deleted
+    if [ ! -f "$modified_file" ]; then
+        continue
+    fi
+    
+    # Get relative path from Content
+    rel_path="${modified_file#$CONTENT_DIR/}"
+    compressed_file="$COMPRESSED_DIR/$rel_path.uc"
+    compressed_dir="$(dirname "$compressed_file")"
+    
+    # Skip if this is already a compressed file
+    if [[ "$modified_file" == *.uc ]]; then
+        continue
+    fi
+    
+    # Skip if compressed file is already in the index
+    if git ls-files --error-unmatch "$compressed_file" >/dev/null 2>&1; then
+        continue
+    fi
+    
+    echo "Compressing: $modified_file -> $compressed_file"
+    
+    # Create target directory if it doesn't exist
+    mkdir -p "$compressed_dir"
+    
+    # Compress the file
+    java -jar "$JAR_PATH" compress "$modified_file" "$compressed_file"
+    
+    if [ $? -ne 0 ]; then
+        echo "Error compressing $modified_file"
+        exit 1
+    fi
+    
+    # Add the compressed file to git
+    git add "$compressed_file"
+done
+
+echo "=== Pre-commit completed ==="
+exit 0

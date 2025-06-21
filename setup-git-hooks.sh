@@ -2,35 +2,27 @@
 
 # Check if we're in a git repository
 if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    echo "Error: Not in a git repository"
-    exit 1
+    error "This is not a git repository. Please run this script from within a git repository."
 fi
 
-# Get the repository root
-REPO_ROOT=$(git rev-parse --show-toplevel)
-GIT_HOOKS_DIR="$REPO_ROOT/.git/hooks"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Make sure we're in the root of the git repository
+cd "$REPO_ROOT"
 
-# Create .git/hooks directory if it doesn't exist
-mkdir -p "$GIT_HOOKS_DIR"
+# Check for required commands
+for cmd in git mvn jq file; do
+    if ! command -v "$cmd" > /dev/null 2>&1; then
+        error "Required command not found: $cmd"
+    fi
+done
 
-# Copy the hooks
-cp "$SCRIPT_DIR/git-hooks/pre-commit" "$GIT_HOOKS_DIR/"
-cp "$SCRIPT_DIR/git-hooks/post-checkout" "$GIT_HOOKS_DIR/"
+# Check for required tools
+status "Checking for required tools..."
+MISSING_TOOLS=0
 
-# Make the hooks executable
-chmod +x "$GIT_HOOKS_DIR/pre-commit"
-chmod +x "$GIT_HOOKS_DIR/post-checkout"
-
-echo "Git hooks installed successfully!"
-echo "Pre-commit hook will compress files before commit"
-echo "Post-checkout hook will decompress files after checkout"
-
-# Create a .gitattributes file to ensure proper handling of compressed files
-GIT_ATTRS="$REPO_ROOT/.gitattributes"
-if [ ! -f "$GIT_ATTRS" ]; then
-    # Mark compressed files as binary to prevent line ending changes
-    echo "*_compressed binary" > "$GIT_ATTRS"
+# Check for jq (JSON processor)
+if ! command -v jq > /dev/null 2>&1; then
+    warning "jq is not installed. It's required for processing the configuration file."
+    MISSING_TOOLS=1
     echo "Created .gitattributes file"
 fi
 

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# This hook runs after git commit --amend, git rebase, or git filter-branch
+# It ensures that any compressed files are properly handled after history rewriting
+
+# Only proceed if this is a rebase or amend
+case "$1" in
+    rebase) ;;
+    *) exit 0 ;;
+esac
+
+# Run the same logic as post-checkout to decompress files
+"$(dirname "$0")/post-checkout"
+
+exit 0
